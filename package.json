@@ -1,0 +1,9 @@
+{
+  "name": "wifiguard-kib42",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Учебный прототип WiFiGuard команды KIB-42 «Династия»",
+  "scripts": { "start": "node server.mjs", "test": "node --test" },
+  "engines": { "node": ">=20" }
+}
