@@ -9,7 +9,7 @@ function validAnswers(value, complete = false) {
   return QUESTIONS.every(q => !Object.hasOwn(value, q.id) ? !complete : q.options.some(o => o.id === value[q.id]));
 }
 export function validateState(value) {
-  if (!value || value.version !== MODEL_VERSION || !['home', 'survey', 'result', 'assistant', 'ended'].includes(value.view)) return null;
+  if (!value || value.version !== MODEL_VERSION || !['home', 'survey', 'result', 'assistant', 'ended', 'portal', 'history'].includes(value.view)) return null;
   const c = value.context;
   if (!c || !PLACES.some(p => p.id === c.place) || !DEVICES.some(d => d.id === c.device) || !PURPOSES.some(p => p.id === c.purpose)) return null;
   if (!validAnswers(value.answers) || (value.baselineAnswers !== null && !validAnswers(value.baselineAnswers, true))) return null;
