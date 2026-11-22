@@ -10,6 +10,7 @@ export const DEVICES = [
   { id: 'android', name: 'Android', icon: 'phone' },
   { id: 'ios', name: 'iPhone', icon: 'phone' },
   { id: 'windows', name: 'Windows', icon: 'laptop' },
+  { id: 'macos', name: 'macOS', icon: 'laptop' },
 ];
 export const PURPOSES = [
   { id: 'browse', name: 'Сайты и видео', detail: 'Без входа в важные аккаунты' },
@@ -78,7 +79,10 @@ export const QUESTIONS = [
 export const SOURCES = [
   { name: 'FTC: Are Public Wi-Fi Networks Safe?', url: 'https://consumer.ftc.gov/articles/are-public-wi-fi-networks-safe-what-you-need-know', note: 'Роль HTTPS, защита аккаунтов и обновления.' },
   { name: 'InfoSec: Tips on Using Public Wi-Fi', url: 'https://www.infosec.gov.hk/en/best-practices/person/tips-on-using-public-wi-fi', note: 'Проверка SSID, шифрование и автоподключение.' },
-  { name: 'Apple: забыть сеть и отключить автоподключение', url: 'https://support.apple.com/102480', note: 'Настройки iPhone.' },
+  { name: 'Apple: забыть сеть и отключить автоподключение', url: 'https://support.apple.com/102480', note: 'Настройки iPhone и Mac.' },
+  { name: 'Apple: настройки Wi-Fi на Mac', url: 'https://support.apple.com/ru-ru/guide/mac-help/mh11935/mac', note: 'Свойства сети и автоподключение в macOS.' },
+  { name: 'Apple: обновление macOS', url: 'https://support.apple.com/ru-ru/108382', note: 'Обновления системы и Safari.' },
+  { name: 'Apple: общий доступ к файлам на Mac', url: 'https://support.apple.com/ru-ru/guide/mac-help/mh17131/mac', note: 'Управление доступом к файлам из локальной сети.' },
   { name: 'Google: подключение к Wi-Fi на Android', url: 'https://support.google.com/android/answer/9075847?hl=ru', note: 'Свойства и удаление сохранённой сети.' },
   { name: 'Microsoft: основные параметры сети Windows', url: 'https://support.microsoft.com/en-us/windows/experience/connectivity-networking/essential-network-settings-and-tasks-in-windows', note: 'Wi-Fi и профиль «Общедоступная сеть».' },
 ];

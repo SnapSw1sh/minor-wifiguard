@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { freshState, loadSession, saveSession, clearSession, validateState, SESSION_KEY } from '../dist/src/session.js';
-import { PRESETS } from '../dist/src/data.js';
+import { PRESETS, DEVICES } from '../dist/src/data.js';
 const mockStorage = () => { const data = new Map(); return { getItem:k => data.get(k) ?? null, setItem:(k,v) => data.set(k,v), removeItem:k => data.delete(k) }; };
 test('Survey and result survive a refresh in the same tab', () => {
   const storage = mockStorage();
@@ -12,6 +12,11 @@ test('Survey and result survive a refresh in the same tab', () => {
   const result = { ...freshState(), view:'assistant', context:preset.context, answers:preset.answers, baselineAnswers:{ ...preset.answers }, skipped:['updates'], activeAction:'autojoin', preset:preset.id };
   saveSession(storage,result);
   assert.deepEqual(loadSession(storage),result);
+  for (const device of DEVICES) {
+    const deviceState = { ...result, context:{ ...result.context, device:device.id } };
+    saveSession(storage,deviceState);
+    assert.deepEqual(loadSession(storage),deviceState);
+  }
   clearSession(storage);
   assert.deepEqual(loadSession(storage),freshState());
 });

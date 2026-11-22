@@ -27,6 +27,8 @@ async function confirm(id,value) {
 try {
   await page.goto(url);
   await page.waitForSelector('.hero');
+  assert.equal(await page.locator('input[name="device"]').count(),4);
+  await page.locator('label.device-card').filter({ has:page.locator('input[value="macos"]') }).click();
   await noOverflow();
   await page.screenshot({ path:`${output}/home-desktop.png`,fullPage:true });
   await action('start').click();
@@ -41,6 +43,17 @@ try {
     await action('next').click();
   }
   await score(50);
+  assert.ok((await page.locator('.context-chips').innerText()).includes('macOS'));
+  assert.ok((await page.locator('.advice-panel').innerText()).includes('Общий доступ к файлам'));
+  await action('assistant').click();
+  for (const [id,expected] of [['encryption','Подробнее'],['updates','Safari обновляется вместе с macOS'],['autojoin','Автоматически подключаться к этой сети']]) {
+    await page.locator(`[data-action="select-action"][data-id="${id}"]`).click();
+    assert.ok((await page.locator('.instruction-list').innerText()).includes(expected));
+  }
+  await page.reload();
+  assert.ok((await page.locator('.context-chips').innerText()).includes('macOS'));
+  await page.screenshot({ path:`${output}/macos-assistant-desktop.png`,fullPage:true });
+  await action('result').click();
   await action('edit').click();
   assert.equal(await page.locator('input[value="unknown"]').isChecked(),true);
   await page.locator('label.option').filter({ has:page.locator('input[value="verified"]') }).click();
@@ -78,6 +91,12 @@ try {
   assert.ok(await page.locator('.hero').isVisible());
   assert.ok(!await page.locator('.resume-banner').count());
   await page.setViewportSize({ width:375,height:812 });
+  for (const width of [320,375,768,1024]) {
+    await page.setViewportSize({ width,height:812 });
+    await noOverflow();
+    assert.ok(await page.locator('label.device-card').filter({ has:page.locator('input[value="macos"]') }).isVisible());
+  }
+  await page.setViewportSize({ width:375,height:812 });
   await noOverflow();
   await page.screenshot({ path:`${output}/home-mobile.png`,fullPage:true });
   await preset('airport'); await noOverflow();
@@ -101,6 +120,6 @@ try {
   await blocked.close();
   assert.deepEqual(errors,[]);
   assert.ok(requests.every(request => new URL(request).origin === new URL(url).origin), 'Unexpected external request');
-  console.log('Browser QA passed: full questionnaire, persistence, edits, skip, 43→10, critical 75, disconnect, safe 0, reset, keyboard, corrupt/blocked storage, desktop/mobile, no external requests.');
+  console.log('Browser QA passed: four device choices, macOS guidance/persistence, full questionnaire, edits, skip, 43→10, critical 75, disconnect, safe 0, reset, keyboard, corrupt/blocked storage, desktop/mobile, no external requests.');
   console.log(`Screenshots: ${output}`);
 } finally { await browser.close(); }
