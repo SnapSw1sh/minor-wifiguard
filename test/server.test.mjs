@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { request } from 'node:http';
+import { readFile } from 'node:fs/promises';
 import { createAppServer } from '../server.mjs';
 
 test('Static server serves the app only and refuses writes and traversal', async t => {
@@ -18,6 +19,8 @@ test('Static server serves the app only and refuses writes and traversal', async
   assert.equal(home.status,200); assert.ok(home.body.includes('WiFiGuard'));
   assert.ok(home.headers['content-security-policy'].includes("connect-src 'self'"));
   const health = await raw('/health'); assert.equal(health.status, 200); assert.deepEqual(JSON.parse(health.body), { status: 'ok', service: 'WiFiGuard' });
+  const staticHealth = JSON.parse(await readFile(new URL('../dist/health', import.meta.url), 'utf8'));
+  assert.deepEqual(staticHealth, JSON.parse(health.body), 'Static hosting and the local server expose the same availability resource');
   const js = await raw('/src/app.js'); assert.equal(js.status,200); assert.ok(js.headers['content-type'].startsWith('text/javascript'));
   assert.equal((await raw('/','HEAD')).body,'');
   assert.equal((await raw('/','POST')).status,405);

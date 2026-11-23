@@ -32,6 +32,7 @@ try {
   await page.waitForSelector('h1');
   await action('connection-check').click();
   await page.waitForSelector('.connection-status');
+  assert.equal(await page.locator('.connection-status.warning').count(),0);
   assert.ok((await page.locator('.connection-grid').innerText()).includes('Источник: Определено автоматически'));
   assert.ok((await page.locator('.connection-questions').innerText()).includes('Источник: Указано пользователем'));
   await action('home').click();

@@ -12,6 +12,7 @@
 @media(max-width:480px){.hero-visual{padding:20px 0 60px;min-height:360px;width:100%;max-width:330px}.float-top{display:none}.preview-card .mini-gauge{--size:135px}.float-bottom{bottom:0;left:0}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;scroll-behavior:auto!important}}
 /* Additional tools */
+.hero-actions { flex-wrap: wrap; }
 .tool-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .tool-card { border: 1px solid var(--line); text-align: left; cursor: pointer; color: inherit; font: inherit; }
 .tool-card:hover { border-color: var(--blue); transform: translateY(-2px); }
