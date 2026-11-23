@@ -11,11 +11,17 @@ export function createAppServer(root = publicRoot) {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'");
     if (!['GET', 'HEAD'].includes(req.method)) { res.writeHead(405, { Allow: 'GET, HEAD' }); res.end(); return; }
     let pathname;
     try { pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); }
     catch { res.writeHead(400); res.end('Bad request'); return; }
+    if (pathname === '/health') {
+      const body = JSON.stringify({ status: 'ok', service: 'WiFiGuard' });
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': Buffer.byteLength(body) });
+      res.end(req.method === 'HEAD' ? undefined : body);
+      return;
+    }
     if (pathname.includes('\0') || pathname.includes('\\')) { res.writeHead(400); res.end('Bad request'); return; }
     const path = resolve(resolvedRoot, '.' + (pathname === '/' ? '/index.html' : pathname));
     if (!path.startsWith(resolvedRoot + sep)) { res.writeHead(403); res.end('Forbidden'); return; }

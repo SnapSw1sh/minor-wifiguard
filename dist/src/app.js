@@ -4,6 +4,7 @@ import { getRecommendations, contextAdvice } from './guidance.js';
 import { freshState, loadSession, saveSession, clearSession } from './session.js';
 import { analyzePortalUrl } from './portal.js';
 import { loadHistory, saveHistory, removeHistoryItem, clearHistory } from './history.js';
+import { checkServerAvailability, readNetworkInformation, CONNECTION_PROTECTION_OPTIONS } from './connection.js';
 
 const paths = {
   wifi: '<path d="M2 8.5a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M8.5 15.5a5.5 5.5 0 0 1 7 0"/><circle cx="12" cy="19" r="1"/>',
@@ -42,6 +43,8 @@ let localStorageForHistory;
 try { localStorageForHistory = window.localStorage; } catch { /* History remains unavailable without localStorage. */ }
 let notice = '';
 let storageUnavailable = false;
+let connectionCheck = null;
+let connectionDraft = { protection: '', work: '' };
 
 function persist() { storageUnavailable = !saveSession(storage, state); }
 function contextLabels() { return [PLACES.find(p => p.id === state.context.place).name, DEVICES.find(p => p.id === state.context.device).name, PURPOSES.find(p => p.id === state.context.purpose).name]; }
@@ -54,10 +57,10 @@ function renderHome() {
   const sample = evaluateAssessment(PRESETS[0].answers);
   return `<div class="container">
     ${Object.keys(state.answers).length && state.view !== 'ended' ? `<div class="resume-banner"><span>У вас есть сохранённая в этой вкладке оценка.</span><button class="button button-small button-outline" data-action="resume">Продолжить</button></div>` : ''}
-    <section class="hero"><div class="hero-copy"><span class="eyebrow">${icon('shield')} Спокойнее в любой сети</span><h1>Публичный Wi-Fi.<br><em>Понятный уровень риска.</em></h1><p>Узнайте, на что обратить внимание при подключении, и получите простой план защиты своих данных.</p><div class="hero-actions"><button class="button" data-action="setup">Оценить подключение</button><span>8 вопросов<br>около 3 минут</span></div><div class="hero-footnote">${icon('lock')} Без регистрации. Ваши ответы остаются в браузере.</div></div>
+    <section class="hero"><div class="hero-copy"><span class="eyebrow">${icon('shield')} Спокойнее в любой сети</span><h1>Публичный Wi-Fi.<br><em>Понятный уровень риска.</em></h1><p>Узнайте, на что обратить внимание при подключении, и получите простой план защиты своих данных.</p><div class="hero-actions"><button class="button" data-action="setup">Оценить подключение</button><button class="button button-outline" data-action="connection">Проверить моё подключение</button><span>8 вопросов<br>около 3 минут</span></div><div class="hero-footnote">${icon('lock')} Без регистрации. Ваши ответы остаются в браузере.</div></div>
     <div class="hero-visual" aria-label="Иллюстрация учебного примера оценки"><div class="orbit"></div><div class="orbit second"></div><span class="visual-dot"></span><div class="preview-card"><div class="preview-card-top"><span>Подключение в кафе</span>${icon('wifi')}</div><small>Пример оценки по ответам</small>${gauge(sample, true)}<div class="preview-label">${sample.level.label}</div><div class="preview-bar"></div><p class="preview-sub">Есть несколько способов снизить риск</p></div><div class="floating-card float-top">${icon('shield')}<span><strong>Понятные рекомендации</strong>Под вашу ситуацию и устройство</span></div><div class="floating-card float-bottom">${icon('toggle')}<span><strong>Автоподключение включено</strong>Один из факторов этого примера</span></div></div></section>
     <section class="features-strip" id="how" aria-label="Как это работает"><div class="feature"><div class="feature-icon">${icon('list')}</div><div><strong>Расскажите о подключении</strong><p>Ответьте на короткие вопросы.<br>«Не знаю» — тоже ответ.</p></div></div><div class="feature"><div class="feature-icon">${icon('chart')}</div><div><strong>Узнайте причины риска</strong><p>У каждого балла есть объяснение.<br>Без скрытых проверок.</p></div></div><div class="feature"><div class="feature-icon">${icon('shield')}</div><div><strong>Настройте защиту</strong><p>Пройдите шаги помощника<br>и сравните результат.</p></div></div></section>
-    <section class="section tools-section"><div class="section-heading"><div><span class="eyebrow">Дополнительные инструменты</span><h2>Проверьте ссылку и вернитесь к результатам</h2></div></div><div class="tool-grid"><button class="panel tool-card" data-action="portal"><div class="feature-icon">${icon('browser')}</div><h3>Проверка ссылки</h3><p>Локально разберите URL страницы подключения, не открывая его.</p></button><button class="panel tool-card" data-action="history"><div class="feature-icon">${icon('chart')}</div><h3>История проверок</h3><p>Сохраните до 10 результатов опроса без чувствительных данных.</p></button></div></section>
+    <section class="section tools-section"><div class="section-heading"><div><span class="eyebrow">Дополнительные инструменты</span><h2>Проверьте подключение и вернитесь к результатам</h2></div></div><div class="tool-grid"><button class="panel tool-card" data-action="connection"><div class="feature-icon">${icon('wifi')}</div><h3>Проверить моё подключение</h3><p>Проверьте доступность WiFiGuard и доступные характеристики сети без определения SSID.</p></button><button class="panel tool-card" data-action="portal"><div class="feature-icon">${icon('browser')}</div><h3>Проверка ссылки</h3><p>Локально разберите URL страницы подключения, не открывая его.</p></button><button class="panel tool-card" data-action="history"><div class="feature-icon">${icon('chart')}</div><h3>История проверок</h3><p>Сохраните до 10 результатов опроса без чувствительных данных.</p></button></div></section>
     <section class="section" id="setup"><div class="section-heading"><div><span class="eyebrow">Начнём с вашей ситуации</span><h2>Где вы подключаетесь?</h2></div><p>Выберите место, устройство и задачу</p></div><div class="setup-panel"><form id="context-form"><fieldset><legend class="sr-only">Общественное место</legend><div class="place-grid">${PLACES.map(p => `<label class="choice-card place-card"><input type="radio" name="place" value="${p.id}" ${p.id === state.context.place ? 'checked' : ''}>${icon(p.icon)}<span class="selected-mark"></span><strong>${p.name}</strong><small>${p.detail}</small></label>`).join('')}</div></fieldset><div class="setup-bottom"><fieldset><legend>Ваше устройство</legend><div class="device-grid">${DEVICES.map(d => `<label class="choice-card device-card"><input type="radio" name="device" value="${d.id}" ${d.id === state.context.device ? 'checked' : ''}>${icon(d.icon)}<strong>${d.name}</strong></label>`).join('')}</div></fieldset><fieldset><legend>Что планируете делать?</legend><div class="purpose-grid">${PURPOSES.map(p => `<label class="choice-card purpose-card"><input type="radio" name="purpose" value="${p.id}" ${p.id === state.context.purpose ? 'checked' : ''}><span><strong>${p.name}</strong><small>${p.detail}</small></span></label>`).join('')}</div></fieldset></div><div class="setup-footer"><div class="privacy-line">${icon('info')}<span>Оценка основана на ответах.<br>WiFiGuard не сканирует сеть и не меняет настройки.</span></div><button type="button" class="button" data-action="start">Начать оценку</button></div></form></div></section>
     <section class="section examples-section" id="examples"><div class="section-heading"><div><span class="eyebrow">Можно сначала попробовать</span><h2>Три ситуации из жизни</h2></div><p>Подготовленные учебные примеры</p></div>${examples()}</section></div>`;
 }
@@ -68,6 +71,14 @@ function renderHistory() {
   const history = loadHistory(localStorageForHistory);
   const items = history.map(item => `<article class="history-item"><div><time datetime="${esc(item.date)}">${esc(new Date(item.date).toLocaleString('ru-RU'))}</time><h3>${esc(item.place)} · ${esc(item.device)}</h3><p>${esc(item.purpose)}</p></div><div class="history-score level-${esc(item.levelId)}"><strong>${item.score}</strong><span>/ 100 · ${esc(item.levelLabel)}</span></div><button class="text-button" data-action="remove-history" data-id="${esc(item.id)}">Удалить</button></article>`).join('');
   return `<div class="container page-shell"><div class="page-heading"><div class="heading-row"><div><span class="eyebrow">Только в этом браузере</span><h1 tabindex="-1">История проверок</h1><p>Сохраняются только результаты опроса: дата, контекст, индекс и уровень риска.</p></div><div><button class="button button-outline button-small" data-action="home">На главную</button>${history.length ? '<button class="text-button" data-action="clear-history">Очистить историю</button>' : ''}</div></div></div><section class="panel history-panel">${items || `<div class="empty-state"><div class="feature-icon">${icon('chart')}</div><h2>История пока пуста</h2><p>Завершите опрос и нажмите «Сохранить результат», чтобы добавить запись.</p></div>`}</section></div>`;
+}
+function connectionCharacteristic(item) { return `<div class="connection-characteristic"><div><strong>${esc(item.label)}</strong><span>${esc(item.value)}</span></div><small>Источник: ${esc(item.source)}</small></div>`; }
+function renderConnection() {
+  const network = readNetworkInformation();
+  const server = connectionCheck;
+  const protectionOptions = CONNECTION_PROTECTION_OPTIONS.map(option => `<label class="option"><input type="radio" name="connection-protection" value="${option.id}" ${connectionDraft.protection === option.id ? 'checked' : ''}><span class="radio-mark"></span><span><strong>${esc(option.label)}</strong></span></label>`).join('');
+  const serverCard = server?.loading ? '<div class="connection-status"><strong>Проверяем доступность…</strong><p>Запрашивается только same-origin адрес WiFiGuard.</p></div>' : server ? `<div class="connection-status ${server.available ? 'good' : 'warning'}"><strong>${server.available ? 'Сервер доступен' : 'Сервер недоступен'}</strong><p>${server.available ? `Ответ получен примерно за ${server.latencyMs} мс.` : esc(server.error)}</p></div>` : '<p class="connection-muted">Проверка ещё не запускалась.</p>';
+  return `<div class="container page-shell"><div class="page-heading"><div class="heading-row"><div><span class="eyebrow">Автоматические данные и ваши ответы</span><h1 tabindex="-1">Проверка текущего подключения</h1><p>Проверяется доступность самого WiFiGuard. Это не сканирование Wi-Fi и не подтверждение безопасности точки доступа.</p></div><button class="button button-outline button-small" data-action="home">На главную</button></div></div><section class="connection-grid"><div class="panel"><div class="panel-head"><h2>Доступность WiFiGuard</h2><span>Источник: Определено автоматически</span></div>${serverCard}<button class="button" data-action="connection-check" ${server?.loading ? 'disabled' : ''}>${server?.loading ? 'Проверяем…' : 'Проверить доступность сервера'}</button><p class="score-note">Низкая задержка или хорошая скорость не доказывают безопасность Wi-Fi и подлинность точки доступа.</p></div><div class="panel"><div class="panel-head"><h2>Доступные характеристики сети</h2><span>Network Information API</span></div>${network.map(connectionCharacteristic).join('')}<p class="score-note">Браузер не сообщает SSID, WPA2/WPA3, мощность сигнала или подлинность точки доступа через эту функцию.</p></div></section><section class="panel connection-questions"><div class="panel-head"><div><h2>Уточните текущую сеть</h2><p>Эти ответы будут использованы в существующем индексе риска.</p></div><span>Источник: Указано пользователем</span></div><fieldset><legend>Тип защиты Wi-Fi</legend><div class="answer-options">${protectionOptions}</div></fieldset><fieldset><legend>Используете сеть для рабочих данных?</legend><div class="answer-options"><label class="option"><input type="radio" name="connection-work" value="yes" ${connectionDraft.work === 'yes' ? 'checked' : ''}><span class="radio-mark"></span><span><strong>Да</strong></span></label><label class="option"><input type="radio" name="connection-work" value="no" ${connectionDraft.work === 'no' ? 'checked' : ''}><span class="radio-mark"></span><span><strong>Нет</strong></span></label><label class="option"><input type="radio" name="connection-work" value="unknown" ${connectionDraft.work === 'unknown' ? 'checked' : ''}><span class="radio-mark"></span><span><strong>Не знаю</strong></span></label></div></fieldset><button class="button" data-action="apply-connection" ${connectionDraft.protection && connectionDraft.work ? '' : 'disabled'}>Учесть ответы в оценке</button><p class="score-note">Автоматическая проверка не определяет SSID, тип шифрования Wi-Fi, сигнал или владельца сети. Для этого нужны доверенные сведения от заведения и настройки устройства.</p></section></div>`;
 }
 function answerOptions(q, selected, name = 'answer') {
   return `<div class="answer-options">${q.options.map(o => `<label class="option"><input type="radio" name="${name}" value="${o.id}" ${o.id === selected ? 'checked' : ''}><span class="radio-mark"></span><span><strong>${esc(o.label)}</strong><small>${esc(o.detail)}</small></span></label>`).join('')}</div>`;
@@ -111,10 +122,10 @@ function renderEnded() {
 }
 function render(focus = true) {
   persist();
-  const view = { home: renderHome, survey: renderSurvey, result: renderResult, assistant: renderAssistant, ended: renderEnded, portal: renderPortal, history: renderHistory }[state.view] ?? renderHome;
+  const view = { home: renderHome, survey: renderSurvey, result: renderResult, assistant: renderAssistant, ended: renderEnded, portal: renderPortal, history: renderHistory, connection: renderConnection }[state.view] ?? renderHome;
   main.innerHTML = `${storageUnavailable ? '<div class="memory-note">Хранилище вкладки недоступно. Приложение работает, но после обновления страницы прогресс может потеряться.</div>' : ''}${view()}`;
   if (focus) { window.scrollTo({ top: 0, behavior: 'instant' }); const heading = main.querySelector('h1') ?? main; heading.setAttribute('tabindex', '-1'); heading.focus({ preventScroll: true }); }
-  const labels = { home: 'Главная', survey: `Вопрос ${state.questionIndex + 1} из 8`, result: 'Результат оценки', assistant: 'План защиты', ended: 'Оценка завершена', portal: 'Проверка ссылки', history: 'История проверок' };
+  const labels = { home: 'Главная', survey: `Вопрос ${state.questionIndex + 1} из 8`, result: 'Результат оценки', assistant: 'План защиты', ended: 'Оценка завершена', portal: 'Проверка ссылки', history: 'История проверок', connection: 'Проверка текущего подключения' };
   document.title = `${labels[state.view]} — WiFiGuard`;
 }
 function showDialog(title, body) {
@@ -145,6 +156,9 @@ document.addEventListener('change', event => {
     main.querySelector('[data-action="next"]').disabled = false;
   }
   if (input.name === 'verification') main.querySelector('[data-action="confirm-change"]').disabled = false;
+  if (input.name === 'connection-protection') connectionDraft.protection = input.value;
+  if (input.name === 'connection-work') connectionDraft.work = input.value;
+  if (input.name?.startsWith('connection-')) { const apply = main.querySelector('[data-action="apply-connection"]'); if (apply) apply.disabled = !(connectionDraft.protection && connectionDraft.work); }
 });
 document.addEventListener('click', event => {
   const button = event.target.closest('[data-action]');
@@ -162,7 +176,23 @@ document.addEventListener('click', event => {
   if (action === 'method') { showMethod(); return; }
   if (action === 'portal') { go('portal'); return; }
   if (action === 'history') { go('history'); return; }
+  if (action === 'connection') { go('connection'); return; }
   if (action === 'home') { go('home'); return; }
+  if (action === 'connection-check') {
+    connectionCheck = { loading: true };
+    render(false);
+    checkServerAvailability().then(result => { connectionCheck = result; render(false); });
+    return;
+  }
+  if (action === 'apply-connection') {
+    if (!connectionDraft.protection || !connectionDraft.work) return;
+    state.answers = { ...state.answers, encryption: connectionDraft.protection };
+    state.context = { ...state.context, purpose: connectionDraft.work === 'yes' ? 'work' : 'browse' };
+    if (!state.baselineAnswers && QUESTIONS.every(q => state.answers[q.id])) state.baselineAnswers = { ...state.answers };
+    if (QUESTIONS.every(q => state.answers[q.id])) { state.view = 'result'; notice = 'Ответы о текущем подключении учтены в индексе риска.'; }
+    else { state.questionIndex = QUESTIONS.findIndex(q => !state.answers[q.id]); state.view = 'survey'; notice = 'Ответы о текущем подключении учтены. Завершите оставшиеся вопросы.'; }
+    render(); return;
+  }
   if (action === 'save-pdf') { window.print(); return; }
   if (action === 'save-history') {
     const a = evaluateAssessment(state.answers);

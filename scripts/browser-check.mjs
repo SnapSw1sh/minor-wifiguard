@@ -28,6 +28,13 @@ try {
   await page.goto(url);
   await page.waitForSelector('.hero');
   assert.equal(await page.locator('input[name="device"]').count(),4);
+  await action('connection').click();
+  await page.waitForSelector('h1');
+  await action('connection-check').click();
+  await page.waitForSelector('.connection-status');
+  assert.ok((await page.locator('.connection-grid').innerText()).includes('Источник: Определено автоматически'));
+  assert.ok((await page.locator('.connection-questions').innerText()).includes('Источник: Указано пользователем'));
+  await action('home').click();
   await page.locator('label.device-card').filter({ has:page.locator('input[value="macos"]') }).click();
   await noOverflow();
   await page.screenshot({ path:`${output}/home-desktop.png`,fullPage:true });

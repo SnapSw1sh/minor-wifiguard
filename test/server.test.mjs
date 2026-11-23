@@ -16,7 +16,8 @@ test('Static server serves the app only and refuses writes and traversal', async
   });
   const home = await raw('/');
   assert.equal(home.status,200); assert.ok(home.body.includes('WiFiGuard'));
-  assert.ok(home.headers['content-security-policy'].includes("connect-src 'none'"));
+  assert.ok(home.headers['content-security-policy'].includes("connect-src 'self'"));
+  const health = await raw('/health'); assert.equal(health.status, 200); assert.deepEqual(JSON.parse(health.body), { status: 'ok', service: 'WiFiGuard' });
   const js = await raw('/src/app.js'); assert.equal(js.status,200); assert.ok(js.headers['content-type'].startsWith('text/javascript'));
   assert.equal((await raw('/','HEAD')).body,'');
   assert.equal((await raw('/','POST')).status,405);

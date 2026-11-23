@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { analyzePortalUrl } from '../dist/src/portal.js';
 import { HISTORY_KEY, loadHistory, saveHistory, removeHistoryItem, clearHistory } from '../dist/src/history.js';
+import { checkServerAvailability, readNetworkInformation } from '../dist/src/connection.js';
 
 class MemoryStorage {
   #data = new Map();
@@ -54,5 +55,22 @@ test('history stores at most ten validated assessment results and supports delet
   saveHistory(storage, { ...base, id: 'ok' });
   clearHistory(storage);
   assert.deepEqual(loadHistory(storage), []);
+});
+
+test('connection data uses Network Information API when available and explains unavailable data', () => {
+  const available = readNetworkInformation({ connection: { type: 'wifi', effectiveType: '4g', downlink: 12.5, rtt: 40, saveData: false } });
+  assert.equal(available.find(item => item.id === 'type').value, 'wifi');
+  assert.equal(available.find(item => item.id === 'rtt').source, 'Определено автоматически');
+  const unavailable = readNetworkInformation({});
+  assert.equal(unavailable.every(item => item.value === 'Браузер не предоставляет эти данные'), true);
+});
+
+test('connection check measures same-origin server availability and handles failure', async () => {
+  let now = 100;
+  const ok = await checkServerAvailability(async (url, options) => { assert.equal(url, '/health'); assert.equal(options.credentials, 'same-origin'); now = 137; return { ok: true, status: 200 }; }, { now: () => now });
+  assert.deepEqual(ok, { available: true, status: 200, latencyMs: 37, source: 'Определено автоматически', error: '' });
+  const failed = await checkServerAvailability(async () => { throw new Error('offline'); }, { now: () => 1 });
+  assert.equal(failed.available, false);
+  assert.equal(failed.latencyMs, null);
 });
 
